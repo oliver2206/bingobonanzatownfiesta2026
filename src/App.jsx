@@ -1,545 +1,1036 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from 'react';
+import About from './About';
+import Experience from './Experience';
+import Gallery from './Gallery';
+import Testimonials from './Testimonials';
+import Contact from './Contact';
 
-const COLUMNS = [
-  { label: "B", range: [1, 15] },
-  { label: "I", range: [16, 30] },
-  { label: "N", range: [31, 45] },
-  { label: "G", range: [46, 60] },
-  { label: "O", range: [61, 75] },
+// Fix: Use a reliable video URL or local path that exists
+// If you have a local video, ensure it's in the public/videos folder
+const heroVideo = '/videos/virtual-tour-vigan.mp4';
+
+const GLOBAL_STYLES = `
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap');
+  
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: #000;
+    overflow-x: hidden;
+  }
+  
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+  }
+  
+  /* Hero Section - Fullscreen without gaps */
+  .hero-section {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .hero-video-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  /* Critical fix: video covers EVERYTHING, no black bars */
+  .hero-video {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 150%;
+    min-height: 150%;
+    width: auto;
+    height: auto;
+    object-fit: cover;
+  }
+  
+  /* Fallback gradient if video fails - no empty space */
+  .hero-video-fallback {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #0a0a2a 0%, #000 100%);
+  }
+  
+  .hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1;
+  }
+  
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    text-align: center;
+    padding: 0px;
+  }
+  
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .hero-letter, .hero-sub-word {
+    display: inline-block;
+    opacity: 0;
+    animation: fadeUp 0.4s ease forwards;
+  }
+  
+  .hero-sub-word {
+    margin-right: 8px;
+  }
+  
+  .cursor-blink {
+    animation: blink 1s infinite;
+  }
+  
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  
+  .scroll-indicator {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 2;
+    opacity: 0.7;
+  }
+  
+  .scroll-indicator span {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #fff;
+  }
+  
+  .scroll-indicator-line {
+    width: 2px;
+    height: 40px;
+    background: #fff;
+    animation: scrollBounce 1.5s infinite;
+  }
+  
+  @keyframes scrollBounce {
+    0%, 100% { transform: translateY(0); opacity: 0.3; }
+    50% { transform: translateY(10px); opacity: 1; }
+  }
+  
+  .btn-blue, .btn-outline-blue {
+    padding: 12px 28px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 40px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    font-family: 'Space Grotesk', sans-serif;
+    border: none;
+  }
+  
+  .btn-blue {
+    background: #3391ff;
+    color: #fff;
+    border: 1px solid #3391ff;
+  }
+  
+  .btn-blue:hover {
+    background: transparent;
+    color: #3391ff;
+    transform: translateY(-3px);
+  }
+  
+  .btn-outline-blue {
+    background: transparent;
+    color: #3391ff;
+    border: 1px solid #3391ff;
+  }
+  
+  .btn-outline-blue:hover {
+    background: #3391ff;
+    color: #fff;
+    transform: translateY(-3px);
+  }
+  
+  .project-card {
+    background: #111;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .project-card:hover {
+    transform: translateY(-8px);
+    border-color: #3391ff;
+    box-shadow: 0 10px 30px rgba(51, 145, 255, 0.2);
+  }
+  
+  .project-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+  }
+  
+  .project-card-button {
+    color: #3391ff;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+  
+  .project-card:hover .project-card-button {
+    transform: translateX(5px);
+  }
+  
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
+  }
+  
+  .modal-content-box {
+    background: #111;
+    max-width: 600px;
+    width: 90%;
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    position: relative;
+    border: 1px solid rgba(51, 145, 255, 0.3);
+  }
+  
+  .modal-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 2rem;
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    transition: color 0.3s;
+  }
+  
+  .modal-close-btn:hover {
+    color: #3391ff;
+  }
+  
+  .modal-img {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+  
+  #scroll-top-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #3391ff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+    z-index: 99;
+    opacity: 0;
+    visibility: hidden;
+  }
+  
+  #scroll-top-btn.visible {
+    opacity: 1;
+    visibility: visible;
+  }
+  
+  #scroll-top-btn:hover {
+    transform: translateY(-5px);
+    background: #fff;
+    color: #3391ff;
+  }
+  
+  .nav-link-item {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.3s;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  
+  .nav-link-item:hover {
+    color: #fff !important;
+  }
+  
+  @media (max-width: 991px) {
+    .desktop-nav {
+      display: none !important;
+    }
+    .hamburger {
+      display: block !important;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .btn-blue, .btn-outline-blue {
+      padding: 10px 20px;
+      font-size: 0.8rem;
+    }
+  }
+`;
+
+const PROJECTS = [
+  { id: 1, img: '/PNGFILE/PORTRAIT.jpg', title: 'Portrait Retouch', desc: 'Professional portrait retouching with skin smoothing and color grading.', link: '/project/portrait-retouch' },
+  { id: 2, img: '/PNGFILE/TRIPPLE EXPOSURE 1.jpg', title: 'Triple Exposure I', desc: 'Creative triple exposure photo compositing effect.', link: '/project/triple-exposure-1' },
+  { id: 3, img: '/PNGFILE/TRIPPLE EXPOSURE 2.jpg', title: 'Triple Exposure II', desc: 'Second series of triple exposure artistic photography.', link: '/project/triple-exposure-2' },
+  { id: 4, img: '/PNGFILE/Untitled-1.png', title: 'Coffee Shop Brand', desc: 'Logo and brand identity for The Daily Grind Coffee Shop.', link: '/project/coffee-shop-brand' },
+  { id: 5, img: '', title: 'Project 5', desc: 'Description for project 5 goes here.', link: '/project/5' },
+  { id: 6, img: '/PNGFILE/TEATEA.png', title: 'Teazy Taste', desc: 'Brand design and visual identity for a milk tea business.', link: '/project/teazy-taste' },
+  { id: 7, img: '/PNGFILE/peanut sarap.png', title: 'Peanut Sarap', desc: 'Product packaging and marketing design for local snack brand.', link: '/project/peanut-sarap' },
+  { id: 8, img: '/PNGFILE/ginatang kuhol.png', title: 'Ginatang Kuhol', desc: 'Food photography and visual design for local delicacy.', link: '/project/ginatang-kuhol' },
+  { id: 9, img: '/PNGFILE/PROJECT9.jpg', title: 'Project 9', desc: 'Description for project 9 goes here.', link: '/project/9' },
+  { id: 10, img: '/PNGFILE/MILKTEA 3.jpg', title: 'Milk Tea Campaign', desc: 'Marketing visuals and promotional design for milk tea brand.', link: '/project/milk-tea-campaign' },
 ];
 
-const BALL_COLORS = {
-  B: "#E53935", I: "#757575", N: "#43A047", G: "#43A047", O: "#E67E22",
-};
+// Typing effect hook
+function useTypingEffect(words) {
+  const [text, setText] = useState('');
+  const [wordIdx, setWordIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+  const [deleting, setDeleting] = useState(false);
 
-const HEADER_COLORS = {
-  B: "#E53935", I: "#1565C0", N: "#6A1B9A", G: "#2E7D32", O: "#E65100",
-};
+  useEffect(() => {
+    const current = words[wordIdx];
+    let timeout;
+    
+    if (!deleting && charIdx === current.length) {
+      timeout = setTimeout(() => setDeleting(true), 2000);
+    } else if (deleting && charIdx === 0) {
+      setDeleting(false);
+      setWordIdx((i) => (i + 1) % words.length);
+    } else {
+      const next = deleting ? charIdx - 1 : charIdx + 1;
+      timeout = setTimeout(() => {
+        setText(current.substring(0, next));
+        setCharIdx(next);
+      }, deleting ? 50 : 100);
+    }
+    
+    return () => clearTimeout(timeout);
+  }, [charIdx, deleting, wordIdx, words]);
 
-function getBallLetter(n) {
-  if (n <= 15) return "B"; if (n <= 30) return "I";
-  if (n <= 45) return "N"; if (n <= 60) return "G"; return "O";
+  return text;
 }
-function getBallColor(n) { return BALL_COLORS[getBallLetter(n)]; }
 
-function emptyCard() {
-  return Array.from({ length: 5 }, (_, col) =>
-    Array.from({ length: 5 }, (_, row) => (col === 2 && row === 2 ? "FREE" : ""))
+// Modal Component
+function Modal({ project, onClose }) {
+  if (!project) return null;
+  
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-content-box">
+        <button className="modal-close-btn" onClick={onClose}>×</button>
+        <img 
+          className="modal-img" 
+          src={project.img || 'https://via.placeholder.com/800x500?text=No+Image'} 
+          alt={project.title} 
+          onError={(e) => { e.target.src = 'https://via.placeholder.com/800x500?text=No+Image'; }}
+        />
+        <h2 style={{ marginBottom: '12px', color: '#3391ff' }}>{project.title}</h2>
+        <p style={{ color: '#ccc', marginBottom: '20px', lineHeight: 1.6 }}>{project.desc}</p>
+        <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+          <a href={project.link} className="btn-blue">View More</a>
+          <a href={project.link} className="btn-outline-blue">Full Project</a>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function checkBingo(grid, calledSet) {
-  const marked = (val) => val === "FREE" || (!isNaN(parseInt(val)) && calledSet.has(parseInt(val)));
-  for (let r = 0; r < 5; r++) if (grid.every((col) => marked(col[r]))) return true;
-  for (let c = 0; c < 5; c++) if (grid[c].every((v) => marked(v))) return true;
-  if ([0,1,2,3,4].every((i) => marked(grid[i][i]))) return true;
-  if ([0,1,2,3,4].every((i) => marked(grid[i][4-i]))) return true;
-  return false;
+// Mobile Navigation
+function MobileNav({ open, onClose, navigate }) {
+  if (!open) return null;
+  
+  const go = (page) => {
+    navigate(page);
+    onClose();
+  };
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: '#0a0a0a',
+      zIndex: 9999,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <button
+        onClick={onClose}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '30px',
+          fontSize: '2.5rem',
+          cursor: 'pointer',
+          color: '#3391ff',
+          background: 'none',
+          border: 'none',
+        }}
+      >
+        ×
+      </button>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '25px' }}>
+        {['about', 'experience', 'gallery', 'testimonials', 'contact', 'portfolio'].map((page) => (
+          <button
+            key={page}
+            onClick={() => go(page)}
+            style={{
+              fontSize: '1.5rem',
+              color: '#3391ff',
+              fontWeight: '600',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              textTransform: 'capitalize',
+              transition: 'color 0.3s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#fff')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#3391ff')}
+          >
+            {page.charAt(0).toUpperCase() + page.slice(1)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-function isCardFilled(grid) {
-  return grid.every((col, ci) => col.every((val, ri) => (ci === 2 && ri === 2) || val !== ""));
-}
+// Navbar Component
+function Navbar({ currentPage, navigate }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const NAV_LINKS = ['about', 'experience', 'gallery', 'testimonials', 'contact', 'portfolio'];
 
-export default function BingoBallRecorder() {
-  const [rounds, setRounds] = useState([[]]);
-  const [currentRound, setCurrentRound] = useState(0);
-  const [cards, setCards] = useState([{ name: "Card 1", grid: emptyCard(), mode: "edit" }]);
-  const [editingCard, setEditingCard] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [manualInput, setManualInput] = useState("");
-  const [manualError, setManualError] = useState("");
-
-  const calledNumbers = rounds[currentRound];
-  const calledSet = new Set(calledNumbers);
-
-  // How many rounds each number has been called across ALL rounds
-  function getCallCount(n) {
-    return rounds.filter((r) => r.includes(n)).length;
-  }
-
-  // ── Recorder ──
-  function toggle(n) {
-    setRounds((prev) => prev.map((r, i) => {
-      if (i !== currentRound) return r;
-      if (calledSet.has(n)) return r.filter((x) => x !== n);
-      return [...r, n];
-    }));
-  }
-  function clearRound() { setRounds((prev) => prev.map((r, i) => i === currentRound ? [] : r)); }
-  function addRound() {
-    setRounds((prev) => [...prev, []]);
-    setCurrentRound((p) => p + 1);
-    setManualInput(""); setManualError("");
-  }
-  const columnCounts = COLUMNS.map(({ range: [lo, hi] }) => calledNumbers.filter((n) => n >= lo && n <= hi).length);
-
-  // ── Manual caller ──
-  function handleManualCall() {
-    const n = parseInt(manualInput, 10);
-    if (isNaN(n) || n < 1 || n > 75) { setManualError("Enter a number between 1 and 75"); return; }
-    if (calledSet.has(n)) { setManualError(`${n} is already called this round`); return; }
-    setManualError(""); setManualInput("");
-    setRounds((prev) => prev.map((r, i) => i === currentRound ? [...r, n] : r));
-  }
-  function handleManualKeyDown(e) { if (e.key === "Enter") handleManualCall(); }
-  function handleManualRemove(n) {
-    setRounds((prev) => prev.map((r, i) => i === currentRound ? r.filter((x) => x !== n) : r));
-  }
-
-  // ── Cards ──
-  function addCard() {
-    const idx = cards.length;
-    setCards((prev) => [...prev, { name: `Card ${idx + 1}`, grid: emptyCard(), mode: "edit" }]);
-    setEditingCard(idx);
-  }
-  function removeCard(idx) {
-    if (cards.length === 1) return;
-    setCards(cards.filter((_, i) => i !== idx));
-    if (editingCard === idx) setEditingCard(null);
-    else if (editingCard > idx) setEditingCard(editingCard - 1);
-  }
-  function updateCardName(idx, name) {
-    setCards((prev) => prev.map((c, i) => i === idx ? { ...c, name } : c));
-  }
-  function saveCard(idx) {
-    setCards((prev) => prev.map((c, i) => i !== idx ? c : { ...c, mode: "play" }));
-    setErrors({});
-    setEditingCard(null);
-  }
-  function editCard(idx) {
-    setCards((prev) => prev.map((c, i) => i !== idx ? c : { ...c, mode: "edit" }));
-    setEditingCard(idx);
-  }
-  function clearCard(idx) {
-    setCards((prev) => prev.map((c, i) => i !== idx ? c : { ...c, grid: emptyCard(), mode: "edit" }));
-    setErrors({});
-  }
-  function handleCellInput(cardIdx, col, row, value) {
-    const key = `${cardIdx}-${col}-${row}`;
-    const card = cards[cardIdx];
-    if (col === 2 && row === 2) return;
-    const num = parseInt(value, 10);
-    const { range } = COLUMNS[col];
-    let err = "";
-    if (value !== "" && (isNaN(num) || num < range[0] || num > range[1])) err = `${range[0]}–${range[1]}`;
-    if (!err && value !== "") {
-      const allNums = card.grid.flatMap((c, ci) => c.map((v, ri) => (ci !== col || ri !== row) ? v : null)).filter(Boolean);
-      if (allNums.includes(value)) err = "Duplicate!";
-    }
-    setErrors((prev) => ({ ...prev, [key]: err }));
-    setCards((prev) => prev.map((c, i) => {
-      if (i !== cardIdx) return c;
-      const newGrid = c.grid.map((colArr, ci) => ci !== col ? colArr : colArr.map((v, ri) => ri !== row ? v : value));
-      return { ...c, grid: newGrid };
-    }));
-  }
-  function isCalledNum(val) { const n = parseInt(val, 10); return !isNaN(n) && calledSet.has(n); }
-  function hasErrors(cardIdx) { return Object.entries(errors).some(([k, v]) => k.startsWith(`${cardIdx}-`) && v !== ""); }
-  function canSave(cardIdx) { return isCardFilled(cards[cardIdx].grid) && !hasErrors(cardIdx); }
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
     <>
-      <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        .bingo-page {
-          background: linear-gradient(135deg, #7B1212 0%, #C0392B 50%, #E67E22 100%);
-          min-height: 100vh; padding: 20px 16px;
-          font-family: 'Segoe UI', sans-serif;
-          display: flex; flex-direction: column; gap: 16px; align-items: center;
-        }
-        .bingo-card, .numpad-card, .card-section {
-          background: rgba(255,255,255,0.08); border-radius: 16px;
-          padding: 20px 18px; width: 100%; max-width: 1100px;
-        }
-        .bingo-title { text-align: center; font-size: clamp(16px,4vw,22px); font-weight: 700; color: #FFD700; margin-bottom: 14px; }
-        .section-title { text-align: center; font-size: clamp(14px,3vw,18px); font-weight: 700; color: #FFD700; margin-bottom: 14px; letter-spacing: 1px; }
-        .bingo-controls { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
-        .bingo-controls label { color: #fff; font-size: clamp(12px,3vw,14px); }
-        .bingo-controls select { padding: 6px 12px; border-radius: 20px; border: none; font-size: clamp(12px,3vw,14px); cursor: pointer; background: #fff; }
-        .btn { border: none; border-radius: 20px; padding: 9px 18px; font-size: clamp(11px,2.5vw,14px); cursor: pointer; font-weight: 700; white-space: nowrap; transition: all 0.15s; }
-        .btn:hover { filter: brightness(1.1); transform: scale(1.03); }
-        .btn-purple { background: #5B2AD0; color: #fff; }
-        .btn-green  { background: #1a7a3a; color: #fff; }
-        .btn-red    { background: #c0392b; color: #fff; }
-        .btn-gold   { background: #FFD700; color: #7B1212; }
-        .btn-blue   { background: #1565C0; color: #fff; }
-        .btn-gray   { background: rgba(255,255,255,0.18); color: rgba(255,255,255,0.45); cursor: not-allowed; }
-        .btn-gray:hover { filter: none; transform: none; }
-
-        /* Ball display board */
-        .display-board { display: grid; grid-template-columns: repeat(15,1fr); gap: 5px; margin-bottom: 14px; }
-        .display-ball { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; user-select: none; }
-        .display-ball span { color: #fff; font-weight: 700; font-size: clamp(9px,1.5vw,15px); }
-        .col-row { display: grid; grid-template-columns: repeat(5,1fr); text-align: center; margin-top: 6px; }
-        .col-label { color: rgba(255,255,255,0.85); font-size: clamp(10px,2vw,13px); }
-        .col-count { color: #fff; font-size: clamp(16px,3vw,22px); font-weight: 700; }
-
-        /* Numpad — shows call count badges */
-        .numpad { display: grid; grid-template-columns: repeat(10,1fr); gap: 6px; }
-        .num-ball-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
-        .num-ball {
-          width: 100%; aspect-ratio: 1; border-radius: 8px;
-          display: flex; align-items: center; justify-content: center;
-          font-size: clamp(10px,1.8vw,14px); user-select: none;
-          transition: all 0.15s; cursor: pointer; font-weight: 700;
-          position: relative;
-        }
-        .num-ball:hover { filter: brightness(1.12); transform: scale(1.06); }
-
-        /* Count badge — shows how many rounds this number was called */
-        .call-count-badge {
-          position: absolute;
-          top: -5px; right: -5px;
-          min-width: 18px; height: 18px;
-          background: #FFD700; color: #7B1212;
-          border-radius: 10px; font-size: 10px; font-weight: 900;
-          display: flex; align-items: center; justify-content: center;
-          padding: 0 4px; line-height: 1;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-          z-index: 2;
-        }
-
-        /* Manual Caller */
-        .manual-caller { background: rgba(0,0,0,0.25); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
-        .caller-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
-        .caller-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .caller-title { color: #FFD700; font-size: clamp(13px,2.5vw,15px); font-weight: 700; }
-        .round-badge { background: rgba(255,215,0,0.18); border: 1.5px solid #FFD700; color: #FFD700; font-size: clamp(11px,2vw,13px); font-weight: 700; padding: 4px 12px; border-radius: 20px; }
-        .round-select { padding: 5px 12px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff; font-size: clamp(11px,2vw,13px); font-weight: 600; cursor: pointer; outline: none; }
-        .round-select option { background: #7B1212; color: #fff; }
-        .caller-input-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-        .manual-num-input { width: 90px; padding: 9px 14px; border-radius: 20px; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.12); color: #fff; font-size: clamp(14px,3vw,18px); font-weight: 700; outline: none; text-align: center; transition: border 0.15s; }
-        .manual-num-input::placeholder { color: rgba(255,255,255,0.35); }
-        .manual-num-input:focus { border-color: #FFD700; }
-        .manual-num-input.input-error { border-color: #ff5252; }
-        .manual-error { color: #ff5252; font-size: clamp(11px,2vw,12px); }
-        .chips-label { color: rgba(255,255,255,0.55); font-size: clamp(10px,1.8vw,12px); margin-bottom: 6px; }
-        .called-chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 130px; overflow-y: auto; }
-        .called-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: clamp(11px,2vw,13px); font-weight: 700; color: #fff; user-select: none; }
-        .chip-remove { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 12px; padding: 0; line-height: 1; display: flex; align-items: center; }
-        .chip-remove:hover { color: #fff; }
-        .no-calls-hint { color: rgba(255,255,255,0.35); font-size: clamp(11px,2vw,12px); font-style: italic; }
-
-        /* Cards Grid */
-        .cards-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; }
-        .card-item { background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px 8px; display: flex; flex-direction: column; gap: 8px; border: 2px solid transparent; transition: border 0.2s, box-shadow 0.2s; position: relative; }
-        .card-item.bingo-card-item { border-color: #4ade80; box-shadow: 0 0 14px rgba(74,222,128,0.3); }
-        .card-item-header { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
-        .card-item-name { font-size: clamp(10px,1.8vw,13px); font-weight: 700; color: #FFD700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .card-item-badge { font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 700; white-space: nowrap; }
-        .badge-edit { background: rgba(255,165,0,0.25); color: #FFD700; }
-        .badge-play { background: rgba(0,200,100,0.2); color: #4ade80; }
-        .badge-bingo { background: #4ade80; color: #064e23; }
-        .card-actions { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
-        .card-action-btn { flex: 1; border: none; border-radius: 14px; padding: 5px 8px; font-size: clamp(10px,1.5vw,12px); font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
-        .card-action-btn:hover { filter: brightness(1.1); }
-        .cab-edit  { background: #E67E22; color: #fff; }
-        .cab-save  { background: #FFD700; color: #7B1212; }
-        .cab-clear { background: rgba(192,57,43,0.7); color: #fff; }
-        .cab-remove { background: rgba(100,100,100,0.4); color: #fff; }
-        .cab-gray  { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.35); cursor: not-allowed; }
-
-        .mini-card-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 2px; border-radius: 6px; overflow: hidden; border: 1.5px solid rgba(255,255,255,0.2); }
-        .mini-header { text-align: center; font-size: clamp(7px,1.2vw,11px); font-weight: 900; color: #fff; padding: 3px 1px; }
-        .mini-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: clamp(6px,1vw,10px); font-weight: 700; color: #fff; border: 0.5px solid rgba(255,255,255,0.1); transition: background 0.15s; }
-        .mini-cell.mini-called { background: rgba(255,215,0,0.45); color: #FFD700; }
-        .mini-cell.mini-free { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.5); font-size: clamp(5px,0.9vw,8px); }
-        .mini-cell.mini-empty { background: rgba(0,0,0,0.2); color: rgba(255,255,255,0.2); }
-        .bingo-label { background: #4ade80; color: #064e23; font-size: clamp(10px,1.8vw,13px); font-weight: 800; text-align: center; padding: 4px; border-radius: 8px; letter-spacing: 1px; }
-
-        .add-card-tile { background: rgba(0,0,0,0.1); border-radius: 12px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80px; cursor: pointer; border: 2px dashed rgba(255,255,255,0.3); transition: border 0.2s; }
-        .add-card-tile:hover { border-color: rgba(255,215,0,0.5); }
-
-        /* Modal */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
-        .modal-box { background: linear-gradient(135deg, #7B1212, #C0392B); border-radius: 18px; padding: 20px 18px; width: 100%; max-width: 480px; border: 2px solid #FFD700; max-height: 90vh; overflow-y: auto; }
-        .modal-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-        .modal-name-input { flex: 1; min-width: 120px; padding: 7px 14px; border-radius: 20px; border: none; font-size: clamp(13px,3vw,15px); font-weight: 600; background: rgba(255,255,255,0.9); color: #333; }
-        .modal-close { background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 32px; height: 32px; color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .modal-close:hover { background: rgba(255,255,255,0.3); }
-        .save-hint { text-align: center; font-size: clamp(11px,2vw,12px); color: rgba(255,200,100,0.85); margin-bottom: 10px; }
-
-        .full-card-grid { display: grid; grid-template-columns: repeat(5,1fr); border-radius: 10px; overflow: hidden; border: 2.5px solid rgba(255,255,255,0.3); }
-        .card-header-cell { padding: clamp(7px,2vw,12px) 4px; text-align: center; font-size: clamp(16px,3.5vw,24px); font-weight: 900; color: #fff; }
-        .card-cell { border: 1px solid rgba(255,255,255,0.15); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3px; min-height: clamp(44px,9vw,64px); position: relative; transition: background 0.2s; }
-        .free-label { color: #FFD700; font-weight: 800; font-size: clamp(10px,2vw,14px); }
-        .cell-input { width: 100%; text-align: center; background: transparent; border: none; border-bottom: 2px solid rgba(255,255,255,0.4); color: #fff; font-size: clamp(12px,2.5vw,18px); font-weight: 700; outline: none; padding: 2px 0; }
-        .cell-input::placeholder { color: rgba(255,255,255,0.3); font-size: clamp(9px,1.5vw,11px); }
-        .cell-input:focus { border-bottom-color: #FFD700; }
-        .cell-input.error-input { border-bottom-color: #ff5252; color: #ff5252; }
-        .cell-error { font-size: clamp(7px,1.2vw,9px); color: #ff5252; margin-top: 1px; }
-        .range-hint { font-size: clamp(7px,1.2vw,9px); color: rgba(255,255,255,0.35); margin-top: 1px; }
-
-        /* Numpad legend */
-        .numpad-legend { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
-        .numpad-legend-item { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.75); font-size: clamp(10px,1.8vw,12px); }
-        .legend-swatch { width: 14px; height: 14px; border-radius: 4px; }
-
-        @media (max-width: 900px) { .cards-grid { grid-template-columns: repeat(3,1fr); } }
-        @media (max-width: 768px) {
-          .bingo-page { padding: 12px 8px; gap: 12px; }
-          .bingo-card, .numpad-card, .card-section { padding: 14px 10px; border-radius: 12px; }
-          .display-board { gap: 3px; }
-          .numpad { grid-template-columns: repeat(8,1fr); gap: 4px; }
-          .cards-grid { grid-template-columns: repeat(3,1fr); gap: 10px; }
-        }
-        @media (max-width: 540px) {
-          .cards-grid { grid-template-columns: repeat(2,1fr); }
-          .display-board { grid-template-columns: repeat(10,1fr); gap: 3px; }
-          .numpad { grid-template-columns: repeat(6,1fr); gap: 3px; }
-        }
-      `}</style>
-
-      <div className="bingo-page">
-
-        {/* ── 1: Ball Display Board (SINGLE — no duplicate) ── */}
-        <div className="bingo-card">
-          <h1 className="bingo-title">🎯 Ball Recording — Round {currentRound + 1}</h1>
-          <div className="bingo-controls">
-            <label>View Round:</label>
-            <select value={currentRound} onChange={(e) => setCurrentRound(Number(e.target.value))}>
-              {rounds.map((_, i) => <option key={i} value={i}>Round {i + 1}</option>)}
-            </select>
-            <button onClick={clearRound} className="btn btn-purple">Clear Round</button>
-            <button onClick={addRound} className="btn btn-green">+ New Round</button>
+      <header style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        width: '100%',
+        zIndex: 100,
+        background: scrolled ? 'rgba(0, 0, 0, 0.9)' : 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: scrolled ? 'blur(10px)' : 'blur(5px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        transition: 'all 0.3s ease',
+      }}>
+        <nav style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 5%',
+          height: '70px',
+          maxWidth: '1400px',
+          margin: '0 auto',
+        }}>
+          <button
+            onClick={() => navigate('home')}
+            style={{
+              fontFamily: "'Syne', sans-serif",
+              fontSize: '1.5rem',
+              fontWeight: 800,
+              color: '#3391ff',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            MySite
+          </button>
+          
+          <div style={{ display: 'flex', gap: '35px', alignItems: 'center' }} className="desktop-nav">
+            {NAV_LINKS.map((link) => (
+              <button
+                key={link}
+                className="nav-link-item"
+                onClick={() => navigate(link)}
+                style={{ color: currentPage === link ? '#fff' : '#3391ff' }}
+              >
+                {link.charAt(0).toUpperCase() + link.slice(1)}
+              </button>
+            ))}
           </div>
-          <div className="display-board">
-            {Array.from({ length: 75 }).map((_, idx) => {
-              const num = calledNumbers[idx] ?? null;
-              const color = num ? getBallColor(num) : null;
-              return (
-                <div key={idx} onClick={() => num && toggle(num)} className="display-ball"
-                  style={{ background: num ? color : "rgba(180,60,40,0.35)", border: num ? `2px solid ${color}` : "2px dashed rgba(255,255,255,0.25)", cursor: num ? "pointer" : "default" }}
-                  title={num ? `Click to remove ${num}` : ""}
-                >
-                  <span>{num ?? ""}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="col-row">
-            {COLUMNS.map(({ label, range: [lo, hi] }) => <div key={label} className="col-label">{label} ({lo}–{hi})</div>)}
-          </div>
-          <div className="col-row">
-            {columnCounts.map((c, i) => <div key={i} className="col-count">{c}</div>)}
-          </div>
-        </div>
+          
+          <button
+            onClick={() => setMobileOpen(true)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '1.8rem',
+              color: '#3391ff',
+              display: 'none',
+            }}
+            className="hamburger"
+          >
+            ☰
+          </button>
+        </nav>
+      </header>
+      
+      <MobileNav open={mobileOpen} onClose={() => setMobileOpen(false)} navigate={navigate} />
+    </>
+  );
+}
 
-        {/* ── 2: Number Pad — with round call count badges ── */}
-        <div className="numpad-card">
-          {/* Legend */}
-          <div className="numpad-legend">
-            <div className="numpad-legend-item">
-              <div className="legend-swatch" style={{ background: "#ADD8E6", border: "2px solid #90CAE8" }} />
-              <span>Not called</span>
-            </div>
-            <div className="numpad-legend-item">
-              <div className="legend-swatch" style={{ background: "#B0BEC5", opacity: 0.5 }} />
-              <span>Called this round</span>
-            </div>
-            <div className="numpad-legend-item">
-              <div className="legend-swatch" style={{ background: "#ADD8E6", border: "2px solid #90CAE8", position: "relative", display: "inline-block" }} />
-              <div style={{ background: "#FFD700", color: "#7B1212", borderRadius: 8, fontSize: 9, fontWeight: 900, padding: "1px 4px" }}>2x</div>
-              <span>Called in multiple rounds</span>
-            </div>
-          </div>
+// Animated Letters Component
+function AnimatedLetters({ text, baseDelay = 0, color }) {
+  return (
+    <>
+      {[...text].map((ch, i) => (
+        <span
+          key={i}
+          className="hero-letter"
+          style={{
+            animationDelay: `${baseDelay + i * 0.05}s`,
+            color: color || 'inherit',
+          }}
+        >
+          {ch === ' ' ? '\u00a0' : ch}
+        </span>
+      ))}
+    </>
+  );
+}
 
-          <div className="numpad">
-            {Array.from({ length: 75 }, (_, i) => i + 1).map((n) => {
-              const isCalledThisRound = calledSet.has(n);
-              const totalCount = getCallCount(n); // how many rounds called
+// Animated Words Component
+function AnimatedWords({ text, baseDelay = 0 }) {
+  return (
+    <>
+      {text.split(' ').map((word, i) => (
+        <span
+          key={i}
+          className="hero-sub-word"
+          style={{ animationDelay: `${baseDelay + i * 0.07}s` }}
+        >
+          {word}
+        </span>
+      ))}
+    </>
+  );
+}
 
-              return (
-                <div key={n} className="num-ball-wrap">
-                  <div
-                    onClick={() => toggle(n)}
-                    className="num-ball"
-                    style={{
-                      background: isCalledThisRound ? "#B0BEC5" : "#ADD8E6",
-                      border: isCalledThisRound ? "3px solid #78909C" : "2px solid #90CAE8",
-                      color: "#000",
-                      opacity: isCalledThisRound ? 0.55 : 1,
-                    }}
-                  >
-                    {n}
-                    {/* Show count badge if called in ANY round */}
-                    {totalCount > 0 && (
-                      <div className="call-count-badge">
-                        {totalCount}x
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── 3: Bingo Cards Section ── */}
-        <div className="card-section">
-          <div className="section-title">🃏 Bingo Cards</div>
-
-          {/* Manual Caller */}
-          <div className="manual-caller">
-            <div className="caller-top">
-              <div className="caller-left">
-                <span className="caller-title">📢 Call a Number (1–75)</span>
-                <span className="round-badge">Round {currentRound + 1}</span>
-                {rounds.length > 1 && (
-                  <select className="round-select" value={currentRound} onChange={(e) => setCurrentRound(Number(e.target.value))}>
-                    {rounds.map((_, i) => <option key={i} value={i}>Round {i + 1} ({rounds[i].length} called)</option>)}
-                  </select>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button className="btn btn-green" onClick={addRound}>+ New Round</button>
-                <button className="btn btn-red" onClick={clearRound}>Clear Round</button>
-              </div>
-            </div>
-            <div className="caller-input-row">
-              <input
-                className={`manual-num-input ${manualError ? "input-error" : ""}`}
-                type="number" min={1} max={75} value={manualInput}
-                onChange={(e) => { setManualInput(e.target.value); setManualError(""); }}
-                onKeyDown={handleManualKeyDown}
-                placeholder="1–75"
+// Portfolio Component (was missing)
+function Portfolio({ navigate }) {
+  const [activeModal, setActiveModal] = useState(null);
+  
+  return (
+    <div style={{ background: '#000', minHeight: '100vh', padding: '120px 20px 80px' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        <h2 style={{
+          textAlign: 'center',
+          fontSize: 'clamp(2rem, 5vw, 3rem)',
+          marginBottom: '20px',
+          color: '#3391ff',
+          fontFamily: "'Syne', sans-serif",
+          fontWeight: 800,
+        }}>
+          My Portfolio
+        </h2>
+        <p style={{
+          textAlign: 'center',
+          color: '#ccc',
+          maxWidth: '600px',
+          margin: '0 auto 60px',
+          fontSize: '1rem',
+        }}>
+          Here's a collection of my best work. Click on any project to see more details.
+        </p>
+        
+        <div className="projects-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: '30px',
+        }}>
+          {PROJECTS.map((project) => (
+            <div
+              key={project.id}
+              className="project-card"
+              onClick={() => setActiveModal(project)}
+            >
+              <img
+                src={project.img || 'https://via.placeholder.com/400x300?text=Project+Image'}
+                alt={project.title}
+                onError={(e) => {
+                  e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                }}
               />
-              <button className="btn btn-gold" onClick={handleManualCall}>Call</button>
-              {manualError && <span className="manual-error">{manualError}</span>}
-            </div>
-            {calledNumbers.length === 0 ? (
-              <span className="no-calls-hint">No numbers called yet — type a number and press Call or Enter</span>
-            ) : (
-              <>
-                <div className="chips-label">{calledNumbers.length} number{calledNumbers.length !== 1 ? "s" : ""} called this round:</div>
-                <div className="called-chips">
-                  {calledNumbers.map((n) => (
-                    <div key={n} className="called-chip" style={{ background: getBallColor(n) }}>
-                      <span>{getBallLetter(n)}{n}</span>
-                      <button className="chip-remove" onClick={() => handleManualRemove(n)} title={`Remove ${n}`}>✕</button>
-                    </div>
-                  ))}
+              <div style={{ padding: '20px' }}>
+                <h3 style={{ color: '#fff', marginBottom: '8px', fontSize: '1.1rem' }}>
+                  {project.title}
+                </h3>
+                <p style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '15px', lineHeight: 1.5 }}>
+                  {project.desc}
+                </p>
+                <div className="project-card-button">
+                  View Details →
                 </div>
-              </>
-            )}
-          </div>
-
-          {/* Cards Grid */}
-          <div className="cards-grid">
-            {cards.map((card, idx) => {
-              const bingo = card.mode === "play" && checkBingo(card.grid, calledSet);
-              const saveable = canSave(idx);
-              return (
-                <div key={idx} className={`card-item ${bingo ? "bingo-card-item" : ""}`}>
-                  <div className="card-item-header">
-                    <span className="card-item-name" title={card.name}>{card.name}</span>
-                    <span className={`card-item-badge ${bingo ? "badge-bingo" : card.mode === "play" ? "badge-play" : "badge-edit"}`}>
-                      {bingo ? "BINGO!" : card.mode === "play" ? "▶ Play" : "✏ Edit"}
-                    </span>
-                  </div>
-                  <div className="mini-card-grid">
-                    {COLUMNS.map(({ label }) => (
-                      <div key={label} className="mini-header" style={{ background: HEADER_COLORS[label] }}>{label}</div>
-                    ))}
-                    {Array.from({ length: 5 }, (_, row) =>
-                      COLUMNS.map((_, col) => {
-                        const val = card.grid[col][row];
-                        const isFree = col === 2 && row === 2;
-                        const called = !isFree && val !== "" && (() => { const n = parseInt(val); return !isNaN(n) && calledSet.has(n); })();
-                        return (
-                          <div key={`${col}-${row}`}
-                            className={`mini-cell ${isFree ? "mini-free" : called ? "mini-called" : val ? "" : "mini-empty"}`}
-                            style={{ background: isFree ? "rgba(255,255,255,0.12)" : called ? "rgba(255,215,0,0.4)" : val ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.2)" }}
-                          >
-                            {isFree ? "F" : val || "·"}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                  {bingo && <div className="bingo-label">🎉 BINGO!</div>}
-                  <div className="card-actions">
-                    <button className="card-action-btn cab-edit" onClick={() => { editCard(idx); setEditingCard(idx); }}>✏️ Edit</button>
-                    {card.mode === "edit" && (
-                      <button className={`card-action-btn ${saveable ? "cab-save" : "cab-gray"}`}
-                        onClick={() => saveable && saveCard(idx)}>💾 Save</button>
-                    )}
-                    <button className="card-action-btn cab-clear" onClick={() => clearCard(idx)}>🗑</button>
-                    {cards.length > 1 && (
-                      <button className="card-action-btn cab-remove" onClick={() => removeCard(idx)}>✕</button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            <div className="add-card-tile" onClick={addCard}>
-              <span style={{ fontSize: 28, color: "rgba(255,255,255,0.5)", lineHeight: 1 }}>+</span>
-              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 4 }}>Add Card</span>
+              </div>
             </div>
-          </div>
+          ))}
+        </div>
+        
+        <div style={{ textAlign: 'center', marginTop: '50px' }}>
+          <button className="btn-outline-blue" onClick={() => navigate('home')}>
+            Back to Home
+          </button>
         </div>
       </div>
+      
+      <Modal project={activeModal} onClose={() => setActiveModal(null)} />
+    </div>
+  );
+}
 
-      {/* Edit Modal */}
-      {editingCard !== null && cards[editingCard] && (() => {
-        const card = cards[editingCard];
-        const saveable = canSave(editingCard);
-        return (
-          <div className="modal-overlay" onClick={() => setEditingCard(null)}>
-            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-top">
-                <input
-                  className="modal-name-input"
-                  value={card.name}
-                  onChange={(e) => updateCardName(editingCard, e.target.value)}
-                  placeholder="Card name..."
-                />
-                <button className={`btn ${saveable ? "btn-gold" : "btn-gray"}`}
-                  onClick={() => saveable && saveCard(editingCard)}>
-                  💾 Save & Play
-                </button>
-                <button className="modal-close" onClick={() => setEditingCard(null)}>✕</button>
-              </div>
-              {!saveable && <p className="save-hint">⚠️ Fill all 24 cells with valid numbers to save</p>}
-              <div className="full-card-grid">
-                {COLUMNS.map(({ label }) => (
-                  <div key={label} className="card-header-cell" style={{ background: HEADER_COLORS[label] }}>{label}</div>
-                ))}
-                {Array.from({ length: 5 }, (_, row) =>
-                  COLUMNS.map(({ range: [lo, hi] }, col) => {
-                    const val = card.grid[col][row];
-                    const isFree = col === 2 && row === 2;
-                    const key = `${editingCard}-${col}-${row}`;
-                    const hasError = errors[key];
-                    return (
-                      <div key={key} className="card-cell"
-                        style={{ background: isFree ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)" }}>
-                        {isFree ? (
-                          <span className="free-label">FREE</span>
-                        ) : (
-                          <>
-                            <input
-                              className={`cell-input ${hasError ? "error-input" : ""}`}
-                              type="number" min={lo} max={hi} value={val}
-                              onChange={(e) => handleCellInput(editingCard, col, row, e.target.value)}
-                              placeholder={`${lo}-${hi}`}
-                            />
-                            {hasError
-                              ? <span className="cell-error">{hasError}</span>
-                              : <span className="range-hint">{lo}–{hi}</span>
-                            }
-                          </>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+// Home Component
+function Home({ navigate }) {
+  const typed = useTypingEffect(['UI/UX Designer', 'Photo Retoucher', 'Marketing Artist']);
+  const [activeModal, setActiveModal] = useState(null);
+  const videoRef = useRef(null);
+  const [videoError, setVideoError] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Force video to play and cover full area
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', 'true');
+
+    const attemptPlay = async () => {
+      try {
+        await video.play();
+      } catch (err) {
+        console.log('Auto-play prevented:', err);
+        setVideoError(true);
+        // Try to play on user interaction
+        const playOnInteraction = () => {
+          video.play().catch(e => console.log('Still failed:', e));
+          document.removeEventListener('click', playOnInteraction);
+          document.removeEventListener('touchstart', playOnInteraction);
+          document.removeEventListener('scroll', playOnInteraction);
+        };
+        document.addEventListener('click', playOnInteraction);
+        document.addEventListener('touchstart', playOnInteraction);
+        document.addEventListener('scroll', playOnInteraction);
+      }
+    };
+
+    const handleError = () => {
+      console.error('Video failed to load');
+      setVideoError(true);
+    };
+    
+    video.addEventListener('error', handleError);
+    
+    const timer = setTimeout(attemptPlay, 100);
+
+    return () => {
+      clearTimeout(timer);
+      video.removeEventListener('error', handleError);
+      if (video) {
+        video.pause();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const titleEndDelay = 0.3 + ('I Am a'.length - 1) * 0.05 + 0.3;
+  const subDelay = titleEndDelay + 0.2;
+
+  return (
+    <div style={{ background: '#000', color: '#fff' }}>
+      
+      {/* HERO SECTION */}
+      <div className="hero-section">
+        <div className="hero-video-container">
+          {!videoError ? (
+            <video
+              ref={videoRef}
+              className="hero-video"
+              autoPlay
+              muted
+              loop
+              playsInline
+            >
+              <source src={heroVideo} type="video/mp4" />
+            </video>
+          ) : (
+            <div className="hero-video-fallback" />
+          )}
+        </div>
+        
+        <div className="hero-overlay" />
+        
+        <div className="hero-content">
+          <div style={{ maxWidth: '800px', width: '90%' }}>
+            <h3 style={{
+              fontFamily: "'Syne', sans-serif",
+              fontSize: '1rem',
+              color: '#3391ff',
+              fontWeight: 600,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              marginBottom: '20px',
+              opacity: 0,
+              animation: 'fadeUp 0.6s ease forwards',
+              animationDelay: '0.1s',
+            }}>
+              HI THERE! 👋
+            </h3>
+            
+            <h1 className="hero-title" style={{
+              fontFamily: "'Syne', sans-serif",
+              fontSize: 'clamp(2.5rem, 6vw, 5rem)',
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: '#fff',
+              marginBottom: '15px',
+            }}>
+              <AnimatedLetters text="I Am a" baseDelay={0.3} color="#fff" />
+            </h1>
+            
+            <div className="hero-typed" style={{
+              fontFamily: "'Syne', sans-serif",
+              fontSize: 'clamp(2rem, 4.5vw, 3.5rem)',
+              fontWeight: 800,
+              color: '#3391ff',
+              marginBottom: '30px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              opacity: 0,
+              animation: 'fadeUp 0.5s ease forwards',
+              animationDelay: `${titleEndDelay}s`,
+            }}>
+              <span>{typed}</span>
+              <span className="cursor-blink" style={{
+                display: 'inline-block',
+                width: '3px',
+                height: '1em',
+                background: '#3391ff',
+              }} />
+            </div>
+            
+            <p style={{
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontSize: 'clamp(0.9rem, 2vw, 1rem)',
+              lineHeight: 1.7,
+              maxWidth: '550px',
+              margin: '0 auto 40px',
+            }}>
+              <AnimatedWords
+                text="Creative web developer & graphic designer from the Philippines. I craft beautiful visuals and responsive digital experiences."
+                baseDelay={subDelay}
+              />
+            </p>
+            
+            <div style={{
+              display: 'flex',
+              gap: '20px',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              opacity: 0,
+              animation: 'fadeUp 0.6s ease forwards',
+              animationDelay: `${subDelay + 1.2}s`,
+            }}>
+              <button className="btn-blue" onClick={() => navigate('about')}>
+                About Me 👤
+              </button>
+              <button className="btn-outline-blue" onClick={() => navigate('portfolio')}>
+                View My Work
+              </button>
             </div>
           </div>
-        );
-      })()}
-    </>
+        </div>
+        
+        <div className="scroll-indicator">
+          <span>SCROLL</span>
+          <div className="scroll-indicator-line" />
+        </div>
+      </div>
+      
+      {/* ABOUT SECTION */}
+      <section style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        width: '100%',
+        minHeight: '100vh',
+      }}>
+        <div style={{
+          flex: 1,
+          minWidth: '300px',
+          minHeight: '500px',
+          background: "url('/PNGFILE/profile.jpg') no-repeat center center / cover",
+        }} />
+        <div style={{
+          flex: 1,
+          minWidth: '300px',
+          background: '#111',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: '60px',
+        }}>
+          <h1 style={{
+            fontFamily: "'Syne', sans-serif",
+            fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
+            fontWeight: 800,
+            color: '#3391ff',
+            marginBottom: '20px',
+          }}>
+            About Me
+          </h1>
+          <div style={{
+            width: '60px',
+            height: '3px',
+            background: '#3391ff',
+            marginBottom: '30px',
+          }} />
+          <p style={{
+            fontSize: '1rem',
+            lineHeight: 1.7,
+            color: '#ccc',
+            marginBottom: '30px',
+          }}>
+            I'm Nathaniel Tolentino Oliver II, a creative web developer and designer from the Philippines.
+            With a strong eye for design and a passion for coding, I specialize in building responsive,
+            modern websites and web applications that leave a lasting impression.
+          </p>
+          <ul style={{
+            listStyle: 'none',
+            marginBottom: '40px',
+          }}>
+            <li style={{ marginBottom: '12px', color: '#ccc' }}>
+              <strong style={{ color: '#3391ff' }}>📍 Location:</strong> Magsingal, Ilocos Sur, Philippines
+            </li>
+            <li style={{ marginBottom: '12px', color: '#ccc' }}>
+              <strong style={{ color: '#3391ff' }}>📧 Email:</strong> nathaniel@example.com
+            </li>
+            <li style={{ marginBottom: '12px', color: '#ccc' }}>
+              <strong style={{ color: '#3391ff' }}>📱 Phone:</strong> +63 XXX XXX XXXX
+            </li>
+            <li style={{ color: '#ccc' }}>
+              <strong style={{ color: '#3391ff' }}>⚡ Skills:</strong> HTML, CSS, JS, React, Photoshop, Lightroom
+            </li>
+          </ul>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
+            <button className="btn-outline-blue" onClick={() => navigate('portfolio')}>
+              Explore My Work
+            </button>
+            <a href="./Nathaniel_Oliver_CV.pdf" target="_blank" rel="noreferrer" className="btn-blue">
+              Download CV 📄
+            </a>
+          </div>
+        </div>
+      </section>
+      
+      {/* FEATURED PROJECTS */}
+      <section style={{ padding: '80px 20px', background: '#000' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <h2 style={{
+            textAlign: 'center',
+            fontSize: 'clamp(2rem, 4vw, 2.5rem)',
+            marginBottom: '50px',
+            color: '#fff',
+            fontFamily: "'Syne', sans-serif",
+            fontWeight: 800,
+          }}>
+            Featured Portfolio Projects
+          </h2>
+          
+          <div className="projects-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: '25px',
+          }}>
+            {PROJECTS.slice(0, 6).map((project) => (
+              <div
+                key={project.id}
+                className="project-card"
+                onClick={() => setActiveModal(project)}
+              >
+                <img
+                  src={project.img || 'https://via.placeholder.com/400x300?text=Project+Image'}
+                  alt={project.title}
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
+                  }}
+                />
+                <div style={{ padding: '20px' }}>
+                  <h3 style={{ color: '#fff', marginBottom: '8px', fontSize: '1.1rem' }}>
+                    {project.title}
+                  </h3>
+                  <p style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '15px', lineHeight: 1.5 }}>
+                    {project.desc}
+                  </p>
+                  <div className="project-card-button">
+                    View Details →
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div style={{ textAlign: 'center', marginTop: '50px' }}>
+            <button className="btn-blue" onClick={() => navigate('portfolio')}>
+              View All Projects
+            </button>
+          </div>
+        </div>
+      </section>
+      
+      <Modal project={activeModal} onClose={() => setActiveModal(null)} />
+      
+      <button
+        id="scroll-top-btn"
+        className={showScrollTop ? 'visible' : ''}
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      >
+        ↑
+      </button>
+    </div>
+  );
+}
+
+// Main App Component
+export default function App() {
+  const [page, setPage] = useState('home');
+
+  const navigate = (pageId) => {
+    setPage(pageId);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const renderPage = () => {
+    switch (page) {
+      case 'home':
+        return <Home navigate={navigate} />;
+      case 'about':
+        return <About navigate={navigate} />;
+      case 'experience':
+        return <Experience />;
+      case 'gallery':
+        return <Gallery />;
+      case 'testimonials':
+        return <Testimonials />;
+      case 'contact':
+        return <Contact />;
+      case 'portfolio':
+        return <Portfolio navigate={navigate} />;
+      default:
+        return <Home navigate={navigate} />;
+    }
+  };
+
+  return (
+    <div style={{
+      background: '#000',
+      minHeight: '100vh',
+      width: '100%',
+      overflowX: 'hidden',
+    }}>
+      <style>{GLOBAL_STYLES}</style>
+      <Navbar currentPage={page} navigate={navigate} />
+      <main>{renderPage()}</main>
+      <footer style={{
+        padding: '40px 5%',
+        background: '#030305',
+        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+        textAlign: 'center',
+      }}>
+        <p style={{ color: '#666', fontSize: '0.85rem' }}>
+          © {new Date().getFullYear()} — All rights reserved.
+        </p>
+      </footer>
+    </div>
   );
 }
